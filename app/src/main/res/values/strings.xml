@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Unpal - 언팔로워 찾기</string>
+    <string name="select_file">Instagram 데이터 파일 선택</string>
+    <string name="analyze">분석하기</string>
+    <string name="start_unfollow">자동 언팔로우 시작</string>
+    <string name="non_followers">맞팔 아닌 계정</string>
+    <string name="followers_count">팔로워: %d명</string>
+    <string name="following_count">팔로잉: %d명</string>
+    <string name="non_followers_count">맞팔 아닌 계정: %d명</string>
+    <string name="accessibility_service_description">Instagram 앱에서 자동으로 언팔로우를 수행합니다.</string>
+    <string name="enable_accessibility">접근성 서비스 활성화 필요</string>
+    <string name="go_to_settings">설정으로 이동</string>
+</resources>

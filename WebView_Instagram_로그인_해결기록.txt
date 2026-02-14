@@ -1,0 +1,147 @@
+============================================================
+Android WebView에서 Instagram 로그인 문제 해결 기록
+============================================================
+프로젝트: UNPAL (Instagram 언팔로우 자동화 앱)
+날짜: 2026-02-12
+============================================================
+
+■ 문제
+  Android WebView에서 Instagram 로그인 페이지가 렌더링되지 않음 (하얀 화면)
+  Instagram이 WebView 환경을 감지하여 로그인 페이지 렌더링을 차단
+
+============================================================
+■ 무산된 시도들
+============================================================
+
+[시도 1] 모바일 User-Agent + 기본 WebView 설정
+  - settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Pixel 8)
+    AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230
+    Mobile Safari/537.36"
+  - 결과: instagram.com/accounts/login/ 로드 시 하얀 화면
+  - 원인: Instagram이 모바일 WebView를 감지하여 차단
+
+[시도 2] WebChromeClient 추가
+  - webChromeClient = WebChromeClient() 추가
+  - JavaScript alert, confirm, 팝업 처리 지원
+  - 결과: 여전히 하얀 화면
+  - 원인: WebChromeClient는 JS 팝업 처리일 뿐, 감지 우회와 무관
+
+[시도 3] shouldOverrideUrlLoading에서 URL 강제 로드
+  - instagram.com, facebook.com, fbcdn.net URL을 view.loadUrl(url)로 강제 처리
+  - 결과: 여전히 하얀 화면
+  - 원인: URL 라우팅 문제가 아니라 페이지 렌더링 자체가 차단됨
+
+[시도 4] instagram.com/ 로드 후 로그인 버튼 클릭
+  - 직접 /accounts/login/ 대신 instagram.com/ 로드
+  - 첫 랜딩 페이지는 표시됨
+  - 로그인 버튼 클릭 시 하얀 화면으로 전환
+  - 결과: 부분적 성공 (랜딩은 뜨지만 로그인 폼 안 뜸)
+  - 원인: 로그인 페이지(/accounts/login/)로 이동하면 차단
+
+[시도 5] 최신 모바일 User-Agent로 변경
+  - "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36
+    (KHTML, like Gecko) Chrome/131.0.6778.200 Mobile Safari/537.36"
+  - 결과: 여전히 하얀 화면
+  - 원인: User-Agent에 "Mobile"이 포함되면 모바일 WebView로 판단
+
+[시도 6] androidx.webkit으로 X-Requested-With 헤더 제거
+  - implementation("androidx.webkit:webkit:1.9.0") 추가
+  - WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+  - Android WebView가 자동 전송하는 "X-Requested-With: com.unpal.app" 헤더 제거
+  - 결과: 여전히 하얀 화면
+  - 원인: X-Requested-With 헤더만으로는 부족.
+    Instagram은 User-Agent의 "Mobile" + WebView 특성을 복합적으로 감지
+
+[시도 7] 추가 WebView 설정 강화
+  - settings.databaseEnabled = true
+  - settings.loadWithOverviewMode = true
+  - settings.useWideViewPort = true
+  - settings.mixedContentMode = MIXED_CONTENT_ALWAYS_ALLOW
+  - settings.javaScriptCanOpenWindowsAutomatically = true
+  - 결과: 여전히 하얀 화면
+  - 원인: 설정 문제가 아니라 Instagram 서버 측 감지
+
+============================================================
+■ 성공한 방법
+============================================================
+
+[해결] 데스크톱 Chrome User-Agent 사용
+
+  settings.userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+    AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+  - "Mobile" 키워드가 없는 데스크톱 Chrome User-Agent 사용
+  - Instagram이 데스크톱 브라우저로 인식 → 로그인 페이지 정상 렌더링
+  - 데스크톱 버전 로그인 페이지가 표시됨
+
+■ 성공 원인 분석:
+  Instagram의 WebView 감지 로직은 주로 다음을 확인:
+  1. User-Agent에 "Mobile" 포함 여부
+  2. User-Agent에 "wv" (WebView 식별자) 포함 여부
+  3. X-Requested-With 헤더 존재 여부
+
+  데스크톱 User-Agent를 사용하면:
+  - "Mobile" 없음 → 모바일 WebView가 아닌 것으로 판단
+  - "wv" 없음 → 일반 데스크톱 브라우저로 판단
+  - Instagram 서버가 일반 데스크톱 Chrome 접속으로 인식
+  - 로그인 페이지를 정상 제공
+
+============================================================
+■ 최종 적용 코드 (전체 WebView 설정)
+============================================================
+
+WebView(ctx).apply {
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    settings.databaseEnabled = true
+    settings.loadWithOverviewMode = true
+    settings.useWideViewPort = true
+    settings.setSupportMultipleWindows(false)
+    settings.javaScriptCanOpenWindowsAutomatically = true
+    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+    // ★ 핵심: 데스크톱 Chrome User-Agent
+    settings.userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+    // X-Requested-With 헤더 제거 (추가 안전장치)
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+    }
+
+    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+    webChromeClient = WebChromeClient()
+
+    webViewClient = object : WebViewClient() {
+        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            return false  // 모든 URL을 WebView 내에서 처리
+        }
+        // ... onPageFinished 등
+    }
+}
+
+============================================================
+■ 필요한 의존성
+============================================================
+
+// build.gradle.kts
+implementation("androidx.webkit:webkit:1.9.0")
+
+============================================================
+■ 주의사항
+============================================================
+
+1. 데스크톱 User-Agent 사용 시 Instagram이 데스크톱 버전 페이지를 제공
+   → 모바일 화면에서는 좌우 스크롤 발생 가능 (큰 문제 아님)
+
+2. 쿠키 영구 저장 필수:
+   CookieManager.getInstance().setAcceptCookie(true)
+   CookieManager.getInstance().flush()
+   → 한 번 로그인하면 앱 재시작 후에도 로그인 유지
+
+3. 로그인 후 언팔로우 WebView에서도 동일한 데스크톱 User-Agent 사용해야
+   쿠키/세션이 호환됨 (User-Agent 불일치 시 세션 무효화 가능)
+
+4. Instagram이 향후 User-Agent 감지 로직을 변경할 수 있음
+   → Chrome 버전 번호를 최신으로 유지하는 것이 좋음
+============================================================

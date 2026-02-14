@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNPAL - 맞팔 안한 사람 찾기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #262626;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            margin: 30px 0 8px;
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8e8e8e;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        /* ZIP upload */
+        .zip-section { margin-bottom: 16px; }
+        .zip-box {
+            display: block;
+            border: 2px dashed #833ab4;
+            border-radius: 12px;
+            padding: 28px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #faf0ff;
+            position: relative;
+        }
+        .zip-box:hover { background: #f3e0ff; border-color: #6d28a8; }
+        .zip-box.loaded { border-color: #4bb543; border-style: solid; background: #f0fff0; }
+        .zip-box.loading { border-color: #fcb045; border-style: solid; background: #fff9f0; }
+        .zip-box,
+        .upload-box {
+            position: relative;
+            overflow: hidden;
+        }
+        .file-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 200px;
+            z-index: 10;
+        }
+        .zip-icon { font-size: 40px; margin-bottom: 8px; }
+        .zip-label { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+        .zip-hint { font-size: 13px; color: #8e8e8e; }
+        .zip-status { font-size: 13px; font-weight: 600; margin-top: 10px; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: #8e8e8e;
+            font-size: 13px;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #dbdbdb;
+        }
+
+        /* Individual uploads */
+        .upload-section {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .upload-box {
+            flex: 1;
+            border: 2px dashed #dbdbdb;
+            border-radius: 12px;
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+            position: relative;
+        }
+        .upload-box:hover { border-color: #833ab4; background: #faf0ff; }
+        .upload-box.loaded { border-color: #4bb543; border-style: solid; background: #f0fff0; }
+        .upload-icon { font-size: 36px; margin-bottom: 8px; }
+        .upload-label { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+        .upload-hint { font-size: 12px; color: #8e8e8e; }
+        .upload-status { font-size: 13px; color: #4bb543; font-weight: 600; margin-top: 8px; }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-bottom: 24px;
+        }
+        .analyze-btn:hover { opacity: 0.9; }
+        .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .results-title { font-size: 18px; font-weight: 700; }
+        .results-count {
+            background: #ed4956;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #dbdbdb;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+        .stat-num { font-size: 22px; font-weight: 700; }
+        .stat-label { font-size: 12px; color: #8e8e8e; margin-top: 2px; }
+
+        .search-bar {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dbdbdb;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+        }
+        .search-bar:focus { border-color: #833ab4; }
+
+        .sort-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .sort-btn {
+            padding: 6px 14px;
+            border: 1px solid #dbdbdb;
+            border-radius: 20px;
+            background: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sort-btn.active { background: #262626; color: #fff; border-color: #262626; }
+
+        .user-list { list-style: none; }
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #fff;
+            border: 1px solid #efefef;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+        .user-item:hover { border-color: #dbdbdb; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .user-num {
+            width: 32px;
+            height: 32px;
+            background: #efefef;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8e8e8e;
+            flex-shrink: 0;
+        }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name {
+            font-weight: 600;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-date { font-size: 12px; color: #8e8e8e; }
+        .user-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            background: #0095f6;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .user-link:hover { background: #1877f2; }
+
+        /* Checked/done state */
+        .user-item.checked {
+            opacity: 0.45;
+            background: #f5f5f5;
+            text-decoration: line-through;
+            text-decoration-color: #8e8e8e;
+        }
+        .user-item.checked .user-name {
+            text-decoration: line-through;
+            text-decoration-color: #8e8e8e;
+        }
+        .user-check {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: #4bb543;
+            flex-shrink: 0;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .action-btn {
+            padding: 7px 14px;
+            border: 1px solid #dbdbdb;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: #f5f5f5; }
+        .action-btn.danger { color: #ed4956; border-color: #ed4956; }
+        .action-btn.danger:hover { background: #fef0f0; }
+        .action-btn.success { color: #4bb543; border-color: #4bb543; }
+        .action-btn.success:hover { background: #f0fff0; }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .checked-count {
+            font-size: 13px;
+            color: #8e8e8e;
+            margin-left: auto;
+        }
+        .hide-checked-label {
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .hide-checked-label input { accent-color: #833ab4; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #8e8e8e;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+        .how-to {
+            background: #fff;
+            border: 1px solid #dbdbdb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .how-to h3 { font-size: 15px; margin-bottom: 12px; }
+        .how-to ol { padding-left: 20px; font-size: 13px; color: #555; line-height: 1.8; }
+        .how-to-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 14px;
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .how-to-btn:hover { opacity: 0.85; }
+
+        #results-section { display: none; }
+
+        @media (max-width: 600px) {
+            .upload-section { flex-direction: column; }
+            .stats { flex-direction: column; }
+            .sort-bar { gap: 6px; }
+            .sort-btn { padding: 6px 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>UNPAL</h1>
+        <p class="subtitle">맞팔 안한 사람 찾기 &mdash; 파일 업로드만으로 간편하게</p>
+
+        <div class="how-to">
+            <h3>사용 방법</h3>
+            <ol>
+                <li>인스타그램 앱 &rarr; 설정 &rarr; 계정 센터 &rarr; 내 정보 및 권한 &rarr; <strong>내 정보 다운로드</strong></li>
+                <li>형식: <strong>JSON</strong> 또는 <strong>HTML</strong> 선택 후 다운로드 요청</li>
+                <li>다운받은 <strong>ZIP 파일을 그대로 업로드</strong>하거나, 압축 풀고 개별 파일 업로드</li>
+            </ol>
+            <a class="how-to-btn" href="https://accountscenter.instagram.com/info_and_permissions/dyi/" target="_blank" rel="noopener">
+                내 정보 다운로드 페이지로 이동 ↗
+            </a>
+        </div>
+
+        <!-- ZIP Upload -->
+        <div class="zip-section">
+            <div class="zip-box" id="zip-box">
+                <div class="zip-icon">📦</div>
+                <div class="zip-label">ZIP 파일 업로드 (권장)</div>
+                <div class="zip-hint">인스타그램에서 받은 ZIP 파일을 그대로 올려주세요</div>
+                <div class="zip-status" id="zip-status"></div>
+                <input type="file" id="zip-input" class="file-overlay" onchange="handleZip(this)">
+            </div>
+        </div>
+
+        <div class="divider">또는 개별 파일 업로드</div>
+
+        <!-- Individual uploads -->
+        <div class="upload-section">
+            <div class="upload-box" id="followers-box">
+                <div class="upload-icon">👥</div>
+                <div class="upload-label">팔로워 목록</div>
+                <div class="upload-hint">followers.json 또는 .html</div>
+                <div class="upload-status" id="followers-status"></div>
+                <input type="file" id="followers-input" class="file-overlay" onchange="handleSingleFile(this,'followers')">
+            </div>
+            <div class="upload-box" id="following-box">
+                <div class="upload-icon">➡️</div>
+                <div class="upload-label">팔로잉 목록</div>
+                <div class="upload-hint">following.json 또는 .html</div>
+                <div class="upload-status" id="following-status"></div>
+                <input type="file" id="following-input" class="file-overlay" onchange="handleSingleFile(this,'following')">
+            </div>
+        </div>
+
+        <button class="analyze-btn" id="analyze-btn" disabled>분석하기</button>
+
+        <div id="results-section">
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-num" id="stat-followers">0</div>
+                    <div class="stat-label">팔로워</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" id="stat-following">0</div>
+                    <div class="stat-label">팔로잉</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" id="stat-not-following-back" style="color:#ed4956">0</div>
+                    <div class="stat-label">맞팔 아닌 사람</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" id="stat-mutual" style="color:#4bb543">0</div>
+                    <div class="stat-label">맞팔</div>
+                </div>
+            </div>
+
+            <div class="results-header">
+                <span class="results-title">맞팔 안한 사람 목록</span>
+                <span class="results-count" id="results-count">0명</span>
+            </div>
+
+            <input type="text" class="search-bar" id="search-bar" placeholder="아이디 검색...">
+
+            <div class="action-bar">
+                <button class="action-btn" id="btn-select-all" onclick="toggleSelectAll()">전체 선택</button>
+                <button class="action-btn danger" id="btn-remove-checked" onclick="removeChecked()" disabled>선택 삭제</button>
+                <button class="action-btn" onclick="resetHistory()" style="color:#8e8e8e">기록 초기화</button>
+                <label class="hide-checked-label">
+                    <input type="checkbox" id="hide-checked" onchange="renderList()">
+                    처리완료 숨기기
+                </label>
+                <span class="checked-count" id="checked-count"></span>
+            </div>
+
+            <div class="sort-bar">
+                <button class="sort-btn active" data-sort="name-asc">이름순 ↑</button>
+                <button class="sort-btn" data-sort="name-desc">이름순 ↓</button>
+                <button class="sort-btn" data-sort="date-desc">최근 팔로우순</button>
+                <button class="sort-btn" data-sort="date-asc">오래된순</button>
+            </div>
+
+            <ul class="user-list" id="user-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        let followersData = null;
+        let followingData = null;
+        let notFollowingBack = [];
+        let currentSort = 'name-asc';
+        let checkedSet = new Set(); // stores checked usernames (lowercase)
+        const STORAGE_KEY = 'unpal_checked';
+        const REMOVED_KEY = 'unpal_removed';
+
+        // --- localStorage persistence ---
+        function saveCheckedState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([...checkedSet]));
+        }
+        function loadCheckedState() {
+            try {
+                const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                return new Set(data);
+            } catch { return new Set(); }
+        }
+        function saveRemovedState(removed) {
+            const existing = loadRemovedState();
+            for (const u of removed) existing.add(u);
+            localStorage.setItem(REMOVED_KEY, JSON.stringify([...existing]));
+        }
+        function loadRemovedState() {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]'));
+            } catch { return new Set(); }
+        }
+
+        // --- Parsing ---
+
+        function parseJSON(text, type) {
+            const json = JSON.parse(text);
+            const users = [];
+
+            let list = null;
+            if (type === 'followers') {
+                list = json.relationships_followers || json;
+            } else {
+                list = json.relationships_following || json;
+            }
+
+            if (!Array.isArray(list)) {
+                for (const key of Object.keys(json)) {
+                    if (Array.isArray(json[key])) {
+                        list = json[key];
+                        break;
+                    }
+                }
+            }
+
+            if (!Array.isArray(list)) return users;
+
+            for (const item of list) {
+                const sld = item.string_list_data;
+                if (sld && sld.length > 0) {
+                    const entry = sld[0];
+                    const username = (entry.value || item.title || '').trim();
+                    if (username) {
+                        users.push({
+                            username: username,
+                            timestamp: entry.timestamp || 0,
+                            href: entry.href || `https://www.instagram.com/${username}/`
+                        });
+                    }
+                } else if (item.title) {
+                    users.push({
+                        username: item.title.trim(),
+                        timestamp: 0,
+                        href: `https://www.instagram.com/${item.title.trim()}/`
+                    });
+                }
+            }
+            return users;
+        }
+
+        function parseHTML(text) {
+            const users = [];
+            const seen = new Set();
+
+            const p1 = /instagram\.com\/_u\/([a-zA-Z0-9._]+)/g;
+            const p2 = /href="https?:\/\/(www\.)?instagram\.com\/([^"/_\s]+)/g;
+            const p3 = /instagram\.com\/([a-zA-Z0-9._]+)/g;
+            const exclude = new Set(['explore','p','reel','accounts','static','_u','developer','about','legal','privacy','terms']);
+
+            let m;
+            while ((m = p1.exec(text)) !== null) {
+                const u = m[1].toLowerCase();
+                if (!seen.has(u)) {
+                    seen.add(u);
+                    users.push({ username: m[1], timestamp: 0, href: `https://www.instagram.com/${m[1]}/` });
+                }
+            }
+            while ((m = p2.exec(text)) !== null) {
+                const u = m[2].toLowerCase();
+                if (!seen.has(u) && !exclude.has(u)) {
+                    seen.add(u);
+                    users.push({ username: m[2], timestamp: 0, href: `https://www.instagram.com/${m[2]}/` });
+                }
+            }
+            while ((m = p3.exec(text)) !== null) {
+                const u = m[1].toLowerCase();
+                if (!seen.has(u) && !exclude.has(u)) {
+                    seen.add(u);
+                    users.push({ username: m[1], timestamp: 0, href: `https://www.instagram.com/${m[1]}/` });
+                }
+            }
+            return users;
+        }
+
+        function parseFile(text, type) {
+            const trimmed = text.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                return parseJSON(trimmed, type);
+            } else {
+                return parseHTML(trimmed);
+            }
+        }
+
+        // --- Detect file type from filename ---
+
+        function detectType(filename) {
+            const lower = filename.toLowerCase();
+            if (lower.includes('follower') && !lower.includes('following')) return 'followers';
+            if (lower.includes('following')) return 'following';
+            return null;
+        }
+
+        // --- File read helper (iOS compatible) ---
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('파일 읽기 실패'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // --- ZIP Upload ---
+
+        async function handleZip(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const zipBox = document.getElementById('zip-box');
+            const zipStatus = document.getElementById('zip-status');
+
+            zipBox.classList.remove('loaded');
+            zipBox.classList.add('loading');
+            zipStatus.textContent = `"${file.name}" (${(file.size/1024/1024).toFixed(1)}MB) 읽는 중...`;
+            zipStatus.style.color = '#fcb045';
+
+            try {
+                const arrayBuffer = await readFileAsArrayBuffer(file);
+                zipStatus.textContent = 'ZIP 파일 분석 중...';
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                let foundFollowers = null;
+                let foundFollowing = null;
+
+                // Search for followers/following files inside ZIP
+                for (const [path, zipEntry] of Object.entries(zip.files)) {
+                    if (zipEntry.dir) continue;
+
+                    const filename = path.split('/').pop().toLowerCase();
+                    const ext = filename.split('.').pop();
+
+                    // Only process json and html files
+                    if (ext !== 'json' && ext !== 'html' && ext !== 'htm') continue;
+
+                    const type = detectType(filename);
+                    if (!type) continue;
+
+                    const content = await zipEntry.async('string');
+                    const users = parseFile(content, type);
+
+                    if (users.length > 0) {
+                        if (type === 'followers' && !foundFollowers) {
+                            foundFollowers = users;
+                        } else if (type === 'following' && !foundFollowing) {
+                            foundFollowing = users;
+                        }
+                    }
+
+                    // If we have both, also check for additional follower files (followers_1, followers_2, etc.)
+                    if (type === 'followers' && foundFollowers && users.length > 0) {
+                        // Merge additional follower files
+                        const existingNames = new Set(foundFollowers.map(u => u.username.toLowerCase()));
+                        for (const u of users) {
+                            if (!existingNames.has(u.username.toLowerCase())) {
+                                foundFollowers.push(u);
+                                existingNames.add(u.username.toLowerCase());
+                            }
+                        }
+                    }
+                }
+
+                if (foundFollowers && foundFollowing) {
+                    followersData = foundFollowers;
+                    followingData = foundFollowing;
+
+                    // Update individual upload UI too
+                    setBoxLoaded('followers-box', 'followers-status', followersData.length);
+                    setBoxLoaded('following-box', 'following-status', followingData.length);
+
+                    zipBox.classList.remove('loading');
+                    zipBox.classList.add('loaded');
+                    zipStatus.textContent = `팔로워 ${foundFollowers.length}명, 팔로잉 ${foundFollowing.length}명 로드 완료!`;
+                    zipStatus.style.color = '#4bb543';
+                    updateButton();
+                } else {
+                    zipBox.classList.remove('loading');
+                    zipStatus.style.color = '#ed4956';
+                    if (!foundFollowers && !foundFollowing) {
+                        zipStatus.textContent = 'ZIP 안에서 팔로워/팔로잉 파일을 찾지 못했습니다';
+                    } else if (!foundFollowers) {
+                        zipStatus.textContent = '팔로워 파일을 찾지 못했습니다 (followers 파일 확인)';
+                    } else {
+                        zipStatus.textContent = '팔로잉 파일을 찾지 못했습니다 (following 파일 확인)';
+                    }
+                }
+            } catch (err) {
+                zipBox.classList.remove('loading');
+                zipStatus.textContent = 'ZIP 처리 오류: ' + err.message;
+                zipStatus.style.color = '#ed4956';
+            }
+            // iOS: 같은 파일 재선택 가능하도록 초기화
+            input.value = '';
+        }
+
+        function setBoxLoaded(boxId, statusId, count) {
+            const box = document.getElementById(boxId);
+            const status = document.getElementById(statusId);
+            box.classList.add('loaded');
+            status.textContent = `${count}명 로드됨 (ZIP)`;
+            status.style.color = '#4bb543';
+        }
+
+        // --- Individual File Upload ---
+
+        function handleSingleFile(input, type) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const boxId = type === 'followers' ? 'followers-box' : 'following-box';
+            const statusId = type === 'followers' ? 'followers-status' : 'following-status';
+            const box = document.getElementById(boxId);
+            const status = document.getElementById(statusId);
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const users = parseFile(ev.target.result, type);
+                    if (users.length === 0) {
+                        status.textContent = '파싱 실패 - 파일 형식 확인';
+                        status.style.color = '#ed4956';
+                        box.classList.remove('loaded');
+                        if (type === 'followers') followersData = null;
+                        else followingData = null;
+                    } else {
+                        if (type === 'followers') followersData = users;
+                        else followingData = users;
+                        status.textContent = `${users.length}명 로드됨`;
+                        status.style.color = '#4bb543';
+                        box.classList.add('loaded');
+                    }
+                    updateButton();
+                } catch (err) {
+                    status.textContent = '파싱 오류: ' + err.message;
+                    status.style.color = '#ed4956';
+                    box.classList.remove('loaded');
+                    if (type === 'followers') followersData = null;
+                    else followingData = null;
+                    updateButton();
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        function updateButton() {
+            document.getElementById('analyze-btn').disabled = !(followersData && followingData);
+        }
+
+        // --- Analysis ---
+
+        document.getElementById('analyze-btn').addEventListener('click', () => {
+            if (!followersData || !followingData) return;
+
+            const followerSet = new Set(followersData.map(u => u.username.toLowerCase()));
+
+            notFollowingBack = followingData.filter(u => !followerSet.has(u.username.toLowerCase()));
+            const mutualCount = followingData.filter(u => followerSet.has(u.username.toLowerCase())).length;
+
+            // Restore previous state from localStorage
+            const removedState = loadRemovedState();
+            if (removedState.size > 0) {
+                notFollowingBack = notFollowingBack.filter(u => !removedState.has(u.username.toLowerCase()));
+            }
+            checkedSet = loadCheckedState();
+            // Only keep checked items that still exist in current list
+            const currentUsers = new Set(notFollowingBack.map(u => u.username.toLowerCase()));
+            checkedSet = new Set([...checkedSet].filter(u => currentUsers.has(u)));
+            saveCheckedState();
+
+            document.getElementById('stat-followers').textContent = followersData.length;
+            document.getElementById('stat-following').textContent = followingData.length;
+            document.getElementById('stat-not-following-back').textContent = notFollowingBack.length;
+            document.getElementById('stat-mutual').textContent = mutualCount;
+
+            document.getElementById('results-section').style.display = 'block';
+            renderList();
+            document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // --- Sorting ---
+
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSort = btn.dataset.sort;
+                renderList();
+            });
+        });
+
+        // --- Search ---
+
+        document.getElementById('search-bar').addEventListener('input', () => renderList());
+
+        // --- Render ---
+
+        function renderList() {
+            const query = document.getElementById('search-bar').value.toLowerCase();
+            const hideChecked = document.getElementById('hide-checked').checked;
+
+            let filtered = notFollowingBack.filter(u => {
+                if (!u.username.toLowerCase().includes(query)) return false;
+                if (hideChecked && checkedSet.has(u.username.toLowerCase())) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                switch (currentSort) {
+                    case 'name-asc': return a.username.localeCompare(b.username);
+                    case 'name-desc': return b.username.localeCompare(a.username);
+                    case 'date-desc': return (b.timestamp || 0) - (a.timestamp || 0);
+                    case 'date-asc': return (a.timestamp || 0) - (b.timestamp || 0);
+                    default: return 0;
+                }
+            });
+
+            const uncheckedCount = notFollowingBack.filter(u => !checkedSet.has(u.username.toLowerCase())).length;
+            document.getElementById('results-count').textContent = uncheckedCount + '명';
+
+            // Update checked count display
+            const checkedCountEl = document.getElementById('checked-count');
+            if (checkedSet.size > 0) {
+                checkedCountEl.textContent = `${checkedSet.size}명 처리완료`;
+            } else {
+                checkedCountEl.textContent = '';
+            }
+
+            // Update remove button state
+            document.getElementById('btn-remove-checked').disabled = checkedSet.size === 0;
+
+            // Update select all button text
+            const allVisible = filtered.filter(u => !checkedSet.has(u.username.toLowerCase()));
+            document.getElementById('btn-select-all').textContent =
+                allVisible.length === 0 && filtered.length > 0 ? '전체 해제' : '전체 선택';
+
+            const list = document.getElementById('user-list');
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🎉</div>
+                        <p>${query ? '검색 결과가 없습니다' : (hideChecked && checkedSet.size > 0 ? '모든 항목을 처리했습니다!' : '맞팔 안한 사람이 없습니다!')}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = filtered.map((user, i) => {
+                const date = user.timestamp
+                    ? new Date(user.timestamp * 1000).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '';
+                const isChecked = checkedSet.has(user.username.toLowerCase());
+                return `
+                    <li class="user-item${isChecked ? ' checked' : ''}">
+                        <input type="checkbox" class="user-check"
+                            ${isChecked ? 'checked' : ''}
+                            onchange="toggleCheck('${escapeHtml(user.username)}')"
+                            title="언팔 처리완료">
+                        <div class="user-num">${i + 1}</div>
+                        <div class="user-info">
+                            <div class="user-name">${escapeHtml(user.username)}</div>
+                            ${date ? `<div class="user-date">팔로우: ${date}</div>` : ''}
+                        </div>
+                        <a class="user-link" href="${escapeHtml(user.href)}" target="_blank" rel="noopener">
+                            프로필 열기 ↗
+                        </a>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function toggleCheck(username) {
+            const key = username.toLowerCase();
+            if (checkedSet.has(key)) {
+                checkedSet.delete(key);
+            } else {
+                checkedSet.add(key);
+            }
+            saveCheckedState();
+            renderList();
+        }
+
+        function toggleSelectAll() {
+            const query = document.getElementById('search-bar').value.toLowerCase();
+            const hideChecked = document.getElementById('hide-checked').checked;
+
+            const visible = notFollowingBack.filter(u => {
+                if (!u.username.toLowerCase().includes(query)) return false;
+                if (hideChecked && checkedSet.has(u.username.toLowerCase())) return false;
+                return true;
+            });
+
+            const uncheckedVisible = visible.filter(u => !checkedSet.has(u.username.toLowerCase()));
+
+            if (uncheckedVisible.length === 0) {
+                // All visible are checked -> uncheck all visible
+                for (const u of visible) {
+                    checkedSet.delete(u.username.toLowerCase());
+                }
+            } else {
+                // Check all visible unchecked
+                for (const u of uncheckedVisible) {
+                    checkedSet.add(u.username.toLowerCase());
+                }
+            }
+            saveCheckedState();
+            renderList();
+        }
+
+        function removeChecked() {
+            if (checkedSet.size === 0) return;
+            const count = checkedSet.size;
+            if (!confirm(`처리 완료된 ${count}명을 목록에서 삭제할까요?`)) return;
+
+            // Save removed usernames to localStorage
+            saveRemovedState(checkedSet);
+            notFollowingBack = notFollowingBack.filter(u => !checkedSet.has(u.username.toLowerCase()));
+            checkedSet.clear();
+            saveCheckedState();
+
+            document.getElementById('stat-not-following-back').textContent = notFollowingBack.length;
+            renderList();
+        }
+
+        function resetHistory() {
+            if (!confirm('모든 처리기록(체크, 삭제)을 초기화할까요?\n초기화 후 다시 분석하기를 눌러주세요.')) return;
+            checkedSet.clear();
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(REMOVED_KEY);
+            // Re-run analysis if data is loaded
+            if (followersData && followingData) {
+                document.getElementById('analyze-btn').click();
+            } else {
+                renderList();
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
