@@ -49,8 +49,7 @@
         .zip-box:hover { background: #f3e0ff; border-color: #6d28a8; }
         .zip-box.loaded { border-color: #4bb543; border-style: solid; background: #f0fff0; }
         .zip-box.loading { border-color: #fcb045; border-style: solid; background: #fff9f0; }
-        .zip-box,
-        .upload-box {
+        .zip-box {
             position: relative;
             overflow: hidden;
         }
@@ -85,29 +84,6 @@
             background: #dbdbdb;
         }
 
-        /* Individual uploads */
-        .upload-section {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .upload-box {
-            flex: 1;
-            border: 2px dashed #dbdbdb;
-            border-radius: 12px;
-            padding: 24px 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #fff;
-            position: relative;
-        }
-        .upload-box:hover { border-color: #833ab4; background: #faf0ff; }
-        .upload-box.loaded { border-color: #4bb543; border-style: solid; background: #f0fff0; }
-        .upload-icon { font-size: 36px; margin-bottom: 8px; }
-        .upload-label { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-        .upload-hint { font-size: 12px; color: #8e8e8e; }
-        .upload-status { font-size: 13px; color: #4bb543; font-weight: 600; margin-top: 8px; }
 
         .analyze-btn {
             width: 100%;
@@ -327,8 +303,122 @@
 
         #results-section { display: none; }
 
+        .brand-footer {
+            text-align: center;
+            padding: 28px 16px;
+            margin-top: 32px;
+            border-top: 1px solid #efefef;
+        }
+        .brand-footer .brand-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #262626;
+            margin-bottom: 4px;
+        }
+        .brand-footer .brand-sub {
+            font-size: 12px;
+            color: #8e8e8e;
+            margin-bottom: 12px;
+        }
+        .brand-ig-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 14px;
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .brand-ig-btn:hover { opacity: 0.85; }
+        .brand-naver-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            background: #03c75a;
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 800;
+            transition: opacity 0.2s;
+            margin-bottom: 8px;
+            border: 1.5px solid #262626;
+        }
+        .brand-naver-btn .n-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            color: #03c75a;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .brand-naver-btn:hover { opacity: 0.85; }
+
+        .cta-banner {
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 24px;
+        }
+        .cta-banner p {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .cta-banner a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: #fff;
+            color: #262626;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            transition: opacity 0.2s;
+        }
+        .cta-banner a:hover { opacity: 0.9; }
+
+        .brand-header {
+            text-align: center;
+            padding: 16px;
+            margin-bottom: 4px;
+        }
+        .brand-header a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #262626;
+            transition: opacity 0.2s;
+        }
+        .brand-header a:hover { opacity: 0.7; }
+        .brand-header .made-by {
+            font-size: 12px;
+            color: #8e8e8e;
+        }
+        .brand-header .brand-name {
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .brand-header .brand-sub {
+            font-size: 11px;
+            color: #8e8e8e;
+        }
+
         @media (max-width: 600px) {
-            .upload-section { flex-direction: column; }
             .stats { flex-direction: column; }
             .sort-bar { gap: 6px; }
             .sort-btn { padding: 6px 10px; font-size: 12px; }
@@ -337,6 +427,16 @@
 </head>
 <body>
     <div class="container">
+        <div class="brand-header">
+            <div class="made-by">made by</div>
+            <a class="brand-naver-btn" id="naver-link-header" href="#" target="_blank" rel="noopener">
+                <span class="n-mark">N</span> 소문난껍데기
+            </a>
+            <br>
+            <a class="brand-ig-btn" href="https://www.instagram.com/ggup_hyung/" target="_blank" rel="noopener">
+                @ggup_hyung
+            </a>
+        </div>
         <h1>UNPAL</h1>
         <p class="subtitle">맞팔 안한 사람 찾기 &mdash; 파일 업로드만으로 간편하게</p>
 
@@ -345,7 +445,7 @@
             <ol>
                 <li>인스타그램 앱 &rarr; 설정 &rarr; 계정 센터 &rarr; 내 정보 및 권한 &rarr; <strong>내 정보 다운로드</strong></li>
                 <li>형식: <strong>JSON</strong> 또는 <strong>HTML</strong> 선택 후 다운로드 요청</li>
-                <li>다운받은 <strong>ZIP 파일을 그대로 업로드</strong>하거나, 압축 풀고 개별 파일 업로드</li>
+                <li>다운받은 <strong>ZIP 파일을 그대로 업로드</strong></li>
             </ol>
             <a class="how-to-btn" href="https://accountscenter.instagram.com/info_and_permissions/dyi/" target="_blank" rel="noopener">
                 내 정보 다운로드 페이지로 이동 ↗
@@ -356,32 +456,13 @@
         <div class="zip-section">
             <div class="zip-box" id="zip-box">
                 <div class="zip-icon">📦</div>
-                <div class="zip-label">ZIP 파일 업로드 (권장)</div>
+                <div class="zip-label">ZIP 파일 업로드</div>
                 <div class="zip-hint">인스타그램에서 받은 ZIP 파일을 그대로 올려주세요</div>
                 <div class="zip-status" id="zip-status"></div>
                 <input type="file" id="zip-input" class="file-overlay" onchange="handleZip(this)">
             </div>
         </div>
 
-        <div class="divider">또는 개별 파일 업로드</div>
-
-        <!-- Individual uploads -->
-        <div class="upload-section">
-            <div class="upload-box" id="followers-box">
-                <div class="upload-icon">👥</div>
-                <div class="upload-label">팔로워 목록</div>
-                <div class="upload-hint">followers.json 또는 .html</div>
-                <div class="upload-status" id="followers-status"></div>
-                <input type="file" id="followers-input" class="file-overlay" onchange="handleSingleFile(this,'followers')">
-            </div>
-            <div class="upload-box" id="following-box">
-                <div class="upload-icon">➡️</div>
-                <div class="upload-label">팔로잉 목록</div>
-                <div class="upload-hint">following.json 또는 .html</div>
-                <div class="upload-status" id="following-status"></div>
-                <input type="file" id="following-input" class="file-overlay" onchange="handleSingleFile(this,'following')">
-            </div>
-        </div>
 
         <button class="analyze-btn" id="analyze-btn" disabled>분석하기</button>
 
@@ -431,6 +512,24 @@
             </div>
 
             <ul class="user-list" id="user-list"></ul>
+
+            <div class="cta-banner">
+                <p>맞팔 정리 끝! 더 많은 인스타 꿀팁은?</p>
+                <a href="https://www.instagram.com/ggup_hyung/" target="_blank" rel="noopener">
+                    @ggup_hyung 팔로우하기
+                </a>
+            </div>
+        </div>
+
+        <div class="brand-footer">
+            <div class="brand-sub" style="margin-bottom:8px;">인천 논현동 맛집</div>
+            <a class="brand-naver-btn" id="naver-link" href="#" target="_blank" rel="noopener">
+                <span class="n-mark">N</span> 소문난껍데기
+            </a>
+            <br>
+            <a class="brand-ig-btn" href="https://www.instagram.com/ggup_hyung/" target="_blank" rel="noopener">
+                @ggup_hyung
+            </a>
         </div>
     </div>
 
@@ -516,7 +615,7 @@
             const seen = new Set();
 
             const p1 = /instagram\.com\/_u\/([a-zA-Z0-9._]+)/g;
-            const p2 = /href="https?:\/\/(www\.)?instagram\.com\/([^"/_\s]+)/g;
+            const p2 = /href="https?:\/\/(www\.)?instagram\.com\/([^"/\s]+)/g;
             const p3 = /instagram\.com\/([a-zA-Z0-9._]+)/g;
             const exclude = new Set(['explore','p','reel','accounts','static','_u','developer','about','legal','privacy','terms']);
 
@@ -635,10 +734,6 @@
                     followersData = foundFollowers;
                     followingData = foundFollowing;
 
-                    // Update individual upload UI too
-                    setBoxLoaded('followers-box', 'followers-status', followersData.length);
-                    setBoxLoaded('following-box', 'following-status', followingData.length);
-
                     zipBox.classList.remove('loading');
                     zipBox.classList.add('loaded');
                     zipStatus.textContent = `팔로워 ${foundFollowers.length}명, 팔로잉 ${foundFollowing.length}명 로드 완료!`;
@@ -661,56 +756,6 @@
                 zipStatus.style.color = '#ed4956';
             }
             // iOS: 같은 파일 재선택 가능하도록 초기화
-            input.value = '';
-        }
-
-        function setBoxLoaded(boxId, statusId, count) {
-            const box = document.getElementById(boxId);
-            const status = document.getElementById(statusId);
-            box.classList.add('loaded');
-            status.textContent = `${count}명 로드됨 (ZIP)`;
-            status.style.color = '#4bb543';
-        }
-
-        // --- Individual File Upload ---
-
-        function handleSingleFile(input, type) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const boxId = type === 'followers' ? 'followers-box' : 'following-box';
-            const statusId = type === 'followers' ? 'followers-status' : 'following-status';
-            const box = document.getElementById(boxId);
-            const status = document.getElementById(statusId);
-
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const users = parseFile(ev.target.result, type);
-                    if (users.length === 0) {
-                        status.textContent = '파싱 실패 - 파일 형식 확인';
-                        status.style.color = '#ed4956';
-                        box.classList.remove('loaded');
-                        if (type === 'followers') followersData = null;
-                        else followingData = null;
-                    } else {
-                        if (type === 'followers') followersData = users;
-                        else followingData = users;
-                        status.textContent = `${users.length}명 로드됨`;
-                        status.style.color = '#4bb543';
-                        box.classList.add('loaded');
-                    }
-                    updateButton();
-                } catch (err) {
-                    status.textContent = '파싱 오류: ' + err.message;
-                    status.style.color = '#ed4956';
-                    box.classList.remove('loaded');
-                    if (type === 'followers') followersData = null;
-                    else followingData = null;
-                    updateButton();
-                }
-            };
-            reader.readAsText(file);
             input.value = '';
         }
 
@@ -912,6 +957,14 @@
             div.textContent = str;
             return div.innerHTML;
         }
+
+        // Naver Place: mobile vs PC
+        const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
+        const naverUrl = isMobile
+            ? 'https://m.place.naver.com/restaurant/1943388597/'
+            : 'https://map.naver.com/p/entry/place/1943388597';
+        document.getElementById('naver-link').href = naverUrl;
+        document.getElementById('naver-link-header').href = naverUrl;
     </script>
 </body>
 </html>
