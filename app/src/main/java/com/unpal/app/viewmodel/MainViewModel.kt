@@ -370,8 +370,8 @@ class MainViewModel : ViewModel() {
         _shouldNavigateToAnalysis.value = false
     }
 
-    // Instagram 데이터 내보내기 파일(HTML/ZIP) 여러 개 처리
-    fun processFiles(context: Context, uris: List<Uri>) {
+    // ZIP 파일 업로드로 분석
+    fun processZip(context: Context, uri: Uri) {
         appContext = context.applicationContext
         if (analysisStorage == null) {
             analysisStorage = AnalysisStorage(context)
@@ -381,85 +381,7 @@ class MainViewModel : ViewModel() {
                 _uiState.value = UiState.Loading
 
                 val result = withContext(Dispatchers.IO) {
-                    val allFollowers = mutableListOf<InstagramAccount>()
-                    val allFollowing = mutableListOf<InstagramAccount>()
-
-                    for (uri in uris) {
-                        val contentResolver = context.contentResolver
-                        val mimeType = contentResolver.getType(uri)
-                        val fileName = getFileName(context, uri)
-                        val lowerFileName = fileName?.lowercase() ?: ""
-
-                        Log.d("MainViewModel", "Processing file: $fileName, mimeType: $mimeType")
-
-                        // 파일 내용 읽기
-                        val content = contentResolver.openInputStream(uri)?.use { inputStream ->
-                            BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).readText()
-                        } ?: continue
-
-                        // ZIP 파일 처리
-                        if (mimeType == "application/zip" || lowerFileName.endsWith(".zip")) {
-                            processZipFile(context, uri)?.let { zipResult ->
-                                allFollowers.addAll(zipResult.followers)
-                                allFollowing.addAll(zipResult.following)
-                            }
-                            continue
-                        }
-
-                        // JSON 또는 HTML 파싱 시도
-                        val accounts = when {
-                            mimeType == "application/json" || lowerFileName.endsWith(".json") -> {
-                                parseJsonFile(content)
-                            }
-                            else -> {
-                                // HTML로 시도, 실패하면 JSON으로도 시도
-                                val htmlAccounts = parseHtmlFile(content)
-                                if (htmlAccounts.isEmpty()) parseJsonFile(content) else htmlAccounts
-                            }
-                        }
-
-                        Log.d("MainViewModel", "Parsed ${accounts.size} accounts from $fileName")
-
-                        // 파일명으로 팔로워/팔로잉 구분
-                        when {
-                            lowerFileName.contains("follower") && !lowerFileName.contains("following") -> {
-                                allFollowers.addAll(accounts)
-                                Log.d("MainViewModel", "Added ${accounts.size} to followers")
-                            }
-                            lowerFileName.contains("following") -> {
-                                allFollowing.addAll(accounts)
-                                // following 파일 URI 저장 (원본 파일 수정용)
-                                followingFileUri = uri
-                                // 저장소에도 URI 저장 (앱 재시작 시 복원용)
-                                analysisStorage?.saveFollowingFileUri(uri.toString())
-                                // 쓰기 권한 유지 요청
-                                try {
-                                    context.contentResolver.takePersistableUriPermission(
-                                        uri,
-                                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                    )
-                                } catch (e: Exception) {
-                                    Log.w("MainViewModel", "Could not take persistable permission: ${e.message}")
-                                }
-                                Log.d("MainViewModel", "Added ${accounts.size} to following, saved URI: $uri")
-                            }
-                            else -> {
-                                // 파일명으로 구분 불가 시 팔로잉으로 처리
-                                allFollowing.addAll(accounts)
-                                Log.d("MainViewModel", "Added ${accounts.size} to following (default)")
-                            }
-                        }
-                    }
-
-                    if (allFollowers.isNotEmpty() || allFollowing.isNotEmpty()) {
-                        calculateAnalysisResult(
-                            allFollowers.distinctBy { it.username.lowercase() },
-                            allFollowing.distinctBy { it.username.lowercase() }
-                        )
-                    } else {
-                        null
-                    }
+                    processZipFile(context, uri)
                 }
 
                 if (result != null) {
@@ -469,27 +391,24 @@ class MainViewModel : ViewModel() {
                     _uiState.value = UiState.Success(result)
                     _shouldNavigateToAnalysis.value = true
                 } else {
-                    _uiState.value = UiState.Error("파일에서 Instagram 데이터를 찾을 수 없습니다.")
+                    _uiState.value = UiState.Error("ZIP 파일에서 팔로워/팔로잉 데이터를 찾을 수 없습니다.\nInstagram 데이터 내보내기 ZIP 파일인지 확인해주세요.")
                 }
 
             } catch (e: Exception) {
-                Log.e("MainViewModel", "processFiles error", e)
-                _uiState.value = UiState.Error("파일 처리 중 오류가 발생했습니다: ${e.message}")
+                Log.e("MainViewModel", "processZip error", e)
+                _uiState.value = UiState.Error("ZIP 파일 처리 중 오류가 발생했습니다: ${e.message}")
             }
         }
     }
 
-    private fun getFileName(context: Context, uri: Uri): String? {
-        var fileName: String? = null
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (nameIndex >= 0) {
-                    fileName = cursor.getString(nameIndex)
-                }
-            }
+    // 파일명으로 followers/following 구분
+    private fun detectTypeFromName(filename: String): String? {
+        val lower = filename.lowercase()
+        return when {
+            lower.contains("follower") && !lower.contains("following") -> "followers"
+            lower.contains("following") -> "following"
+            else -> null
         }
-        return fileName
     }
 
     private fun processZipFile(context: Context, uri: Uri): AnalysisResult? {
@@ -500,21 +419,45 @@ class MainViewModel : ViewModel() {
             ZipInputStream(inputStream).use { zipInputStream ->
                 var entry = zipInputStream.nextEntry
                 while (entry != null) {
-                    val entryName = entry.name.lowercase()
+                    if (!entry.isDirectory) {
+                        val entryName = entry.name.lowercase()
+                        val fileName = entry.name.substringAfterLast("/").lowercase()
+                        val ext = fileName.substringAfterLast(".")
 
-                    // followers_and_following 폴더 안의 파일들 처리
-                    if (entryName.contains("followers_and_following") ||
-                        entryName.contains("followers") ||
-                        entryName.contains("following")) {
+                        // JSON, HTML 파일만 처리
+                        if (ext == "json" || ext == "html" || ext == "htm") {
+                            val type = detectTypeFromName(fileName)
 
-                        if (entryName.endsWith(".html")) {
-                            val content = BufferedReader(InputStreamReader(zipInputStream)).readText()
-                            val accounts = parseHtmlFile(content)
+                            if (type != null) {
+                                val content = BufferedReader(InputStreamReader(zipInputStream)).readText()
+                                val accounts = when (ext) {
+                                    "json" -> parseJsonFile(content)
+                                    else -> parseHtmlFile(content)
+                                }
 
-                            val fileName = entry.name.substringAfterLast("/").lowercase()
-                            when {
-                                fileName.startsWith("followers") -> followers.addAll(accounts)
-                                fileName.startsWith("following") -> following.addAll(accounts)
+                                Log.d("MainViewModel", "ZIP entry: ${entry.name} -> type=$type, accounts=${accounts.size}")
+
+                                if (accounts.isNotEmpty()) {
+                                    when (type) {
+                                        "followers" -> {
+                                            // 중복 제거하며 추가
+                                            val existing = followers.map { it.username.lowercase() }.toSet()
+                                            accounts.forEach { account ->
+                                                if (!existing.contains(account.username.lowercase())) {
+                                                    followers.add(account)
+                                                }
+                                            }
+                                        }
+                                        "following" -> {
+                                            val existing = following.map { it.username.lowercase() }.toSet()
+                                            accounts.forEach { account ->
+                                                if (!existing.contains(account.username.lowercase())) {
+                                                    following.add(account)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -525,7 +468,9 @@ class MainViewModel : ViewModel() {
             }
         }
 
-        return if (followers.isNotEmpty() || following.isNotEmpty()) {
+        Log.d("MainViewModel", "ZIP result: followers=${followers.size}, following=${following.size}")
+
+        return if (followers.isNotEmpty() && following.isNotEmpty()) {
             calculateAnalysisResult(followers, following)
         } else {
             null

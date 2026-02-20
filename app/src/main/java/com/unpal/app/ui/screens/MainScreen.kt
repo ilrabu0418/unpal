@@ -74,13 +74,13 @@ fun MainScreen(
     // 파일 처리 중인지 추적
     var isProcessingFile by remember { mutableStateOf(false) }
 
-    // 파일 선택 launcher (여러 파일 선택 가능)
+    // ZIP 파일 선택 launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
             isProcessingFile = true
-            viewModel.processFiles(context, uris)
+            viewModel.processZip(context, uri)
         }
     }
 
@@ -138,7 +138,7 @@ fun MainScreen(
                 lastUpdated = lastUpdated,
                 uiState = uiState,
                 onSelectFiles = {
-                    filePickerLauncher.launch(arrayOf("application/json", "text/html", "application/zip", "*/*"))
+                    filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*"))
                 },
                 onViewSavedData = onNavigateToAnalysis
             )
@@ -239,11 +239,11 @@ private fun MainActionSection(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "파일 선택하여 분석",
+                            text = "ZIP 파일 업로드",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "followers + following 파일 선택",
+                            text = "인스타그램에서 받은 ZIP 파일을 선택하세요",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -354,7 +354,7 @@ private fun InfoSection() {
             textAlign = TextAlign.Center
         )
         Text(
-            text = "JSON 파일을 다운로드 후 선택하세요",
+            text = "다운받은 ZIP 파일을 그대로 업로드하세요",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
