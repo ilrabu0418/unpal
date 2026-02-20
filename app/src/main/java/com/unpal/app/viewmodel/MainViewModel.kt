@@ -478,45 +478,43 @@ class MainViewModel : ViewModel() {
     }
 
     private fun parseHtmlFile(content: String): List<InstagramAccount> {
+        val seen = mutableSetOf<String>()
         val accounts = mutableListOf<InstagramAccount>()
+        val exclude = setOf("explore", "p", "reel", "accounts", "static", "_u",
+            "developer", "about", "legal", "privacy", "terms", "directory", "lite")
 
-        // 여러 패턴 시도 (following은 /_u/ 경로 사용)
-        val patterns = listOf(
-            // 패턴 1: instagram.com/_u/username (following 형식)
-            Regex("""instagram\.com/_u/([a-zA-Z0-9._]+)"""),
-            // 패턴 2: href="https://www.instagram.com/username" (followers 형식)
-            Regex("""href="https?://(www\.)?instagram\.com/([^"/_]+)"""),
-            // 패턴 3: instagram.com/username 일반 형식
-            Regex("""instagram\.com/([a-zA-Z0-9._]+)""")
-        )
+        // 패턴 1: instagram.com/_u/username (following 형식)
+        val p1 = Regex("""instagram\.com/_u/([a-zA-Z0-9._]+)""")
+        p1.findAll(content).forEach { match ->
+            val username = match.groupValues[1]
+            val key = username.lowercase()
+            if (username.isNotBlank() && key !in seen) {
+                seen.add(key)
+                accounts.add(InstagramAccount(
+                    username = username,
+                    profileUrl = "https://instagram.com/$username"
+                ))
+            }
+        }
 
-        for (pattern in patterns) {
-            pattern.findAll(content).forEach { match ->
-                // 마지막 캡처 그룹에서 username 추출
-                val username = match.groupValues.lastOrNull {
-                    it.isNotBlank() &&
-                    !it.startsWith("www") &&
-                    !it.startsWith("_u") &&
-                    it.length > 1
-                } ?: return@forEach
-
-                if (username.isNotBlank() &&
-                    !username.contains("/") &&
-                    !username.equals("www", ignoreCase = true) &&
-                    !username.equals("_u", ignoreCase = true)) {
-                    accounts.add(
-                        InstagramAccount(
-                            username = username,
-                            profileUrl = "https://instagram.com/$username"
-                        )
-                    )
+        // 패턴 1에서 못 찾으면 패턴 2: href="https://www.instagram.com/username" (followers 형식)
+        if (accounts.isEmpty()) {
+            val p2 = Regex("""href="https?://(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)""")
+            p2.findAll(content).forEach { match ->
+                val username = match.groupValues[1]
+                val key = username.lowercase()
+                if (username.isNotBlank() && key !in seen && key !in exclude) {
+                    seen.add(key)
+                    accounts.add(InstagramAccount(
+                        username = username,
+                        profileUrl = "https://instagram.com/$username"
+                    ))
                 }
             }
-            if (accounts.isNotEmpty()) break
         }
 
         Log.d("MainViewModel", "parseHtmlFile found ${accounts.size} accounts")
-        return accounts.distinctBy { it.username.lowercase() }
+        return accounts
     }
 
     private fun parseJsonFile(content: String): List<InstagramAccount> {
